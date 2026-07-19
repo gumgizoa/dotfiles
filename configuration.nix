@@ -35,8 +35,12 @@
     onActivation.cleanup = "zap";  # remove anything not listed here
     onActivation.autoUpdate = true;
     onActivation.extraFlags = [ "--force" ];
+    taps = [
+      "can1357/tap"
+    ];
     brews = [
       "herdr"
+      "omp"
     ];
     casks = [
       "wezterm"
