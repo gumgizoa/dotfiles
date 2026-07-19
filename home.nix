@@ -16,6 +16,7 @@ in
     jq        # json on the command line
     lazygit
     neovim
+    nodejs    # needed by mason for npm-based LSP servers (vtsls, etc.)
     # the font everything renders in
     nerd-fonts.hack
   ];
@@ -68,5 +69,7 @@ in
   home.file.".codex/AGENTS.md".source =
     config.lib.file.mkOutOfStoreSymlink "${dotfiles}/home/AGENTS.md";
   home.file.".config/opencode/AGENTS.md".source =
+    config.lib.file.mkOutOfStoreSymlink "${dotfiles}/home/AGENTS.md";
+  home.file."AGENTS.md".source =
     config.lib.file.mkOutOfStoreSymlink "${dotfiles}/home/AGENTS.md";
 }
