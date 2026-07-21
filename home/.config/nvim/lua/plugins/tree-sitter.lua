@@ -13,7 +13,6 @@ return {
         'json',
         'vim',
         'vimdoc',
-        'latex',
         'lua',
         'python',
         'sql',
