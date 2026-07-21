@@ -39,8 +39,10 @@
       "can1357/tap"
     ];
     brews = [
+      "bun"
       "herdr"
       "omp"
+      "rustup"
     ];
     casks = [
       "wezterm"

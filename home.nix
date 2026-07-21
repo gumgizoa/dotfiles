@@ -29,6 +29,8 @@ in
     syntaxHighlighting.enable = true;  # commands turn green when valid
     initContent = ''
       bindkey '^f' autosuggest-accept
+      # rustup is keg-only (conflicts with the rust formula), so its bin isn't symlinked into /opt/homebrew/bin.
+      export PATH="/opt/homebrew/opt/rustup/bin:$PATH"
     '';
     shellAliases = {
       ".." = "cd ..";
