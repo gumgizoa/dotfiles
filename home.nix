@@ -17,6 +17,7 @@ in
     lazygit
     neovim
     nodejs    # needed by mason for npm-based LSP servers (vtsls, etc.)
+    tree-sitter  # CLI needed by nvim-treesitter to compile parsers
     # the font everything renders in
     nerd-fonts.hack
   ];
