@@ -48,14 +48,10 @@ return {
       preset = 'round',
     },
 
-    -- LaTeX math rendering: needs the `latex` parser and `latex2text` (pylatexenc)
+    -- The `latex` treesitter parser needs 2.7GB+ RAM to generate (OOM-kills
+    -- small boxes), so it's not in ensure_installed and math stays unrendered.
     latex = {
-      enabled = true,
-      converter = 'latex2text',
-      highlight = 'RenderMarkdownMath',
-      -- Blank lines above/below the rendered formula
-      top_pad = 0,
-      bottom_pad = 0,
+      enabled = false,
     },
 
     -- Checkbox and callout completions for blink.cmp / nvim-cmp
