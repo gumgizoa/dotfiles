@@ -19,6 +19,7 @@ in
     nodejs    # needed by mason for npm-based LSP servers (vtsls, etc.)
     tree-sitter  # CLI needed by nvim-treesitter to compile parsers
     # the font everything renders in
+    python3Packages.pylatexenc # latex2text, used by markdown.nvim for math 
     nerd-fonts.hack
   ];
   fonts.fontconfig.enable = true;
