@@ -1,7 +1,7 @@
 {
   "statusLine": {
     "type": "command",
-    "command": "input=$(cat); model=$(echo \"$input\" | jq -r '.model.display_name'); used=$(echo \"$input\" | jq -r '.context_window.used_percentage // empty'); if [ -n \"$used\" ]; then printf \"%s | ctx: %.0f%% used\" \"$model\" \"$used\"; else printf \"%s\" \"$model\"; fi"
+    "command": "input=$(cat); model=$(echo \"$input\" | jq -r '.model.display_name'); used=$(echo \"$input\" | jq -r '.context_window.used_percentage // empty'); out=\"$model\"; if [ -n \"$used\" ]; then out=\"$out | $(printf 'ctx: %.0f%% used' \"$used\")\"; fi; five_pct=$(echo \"$input\" | jq -r '.rate_limits.five_hour.used_percentage // empty'); five_reset=$(echo \"$input\" | jq -r '.rate_limits.five_hour.resets_at // empty'); if [ -n \"$five_pct\" ]; then if [ -n \"$five_reset\" ]; then five_str=$(date -r \"$five_reset\" '+%H:%M' 2>/dev/null); out=\"$out | $(printf '5h: %.0f%%' \"$five_pct\")$( [ -n \"$five_str\" ] && printf ' (resets %s)' \"$five_str\" )\"; else out=\"$out | $(printf '5h: %.0f%%' \"$five_pct\")\"; fi; fi; week_pct=$(echo \"$input\" | jq -r '.rate_limits.seven_day.used_percentage // empty'); week_reset=$(echo \"$input\" | jq -r '.rate_limits.seven_day.resets_at // empty'); if [ -n \"$week_pct\" ]; then if [ -n \"$week_reset\" ]; then week_str=$(date -r \"$week_reset\" '+%a %H:%M' 2>/dev/null); out=\"$out | $(printf '7d: %.0f%%' \"$week_pct\")$( [ -n \"$week_str\" ] && printf ' (resets %s)' \"$week_str\" )\"; else out=\"$out | $(printf '7d: %.0f%%' \"$week_pct\")\"; fi; fi; printf '%s' \"$out\""
   },
   "theme": "dark-ansi",
   "skipDangerousModePermissionPrompt": true
