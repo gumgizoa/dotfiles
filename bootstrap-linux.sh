@@ -37,7 +37,8 @@ latest_tag() {
 echo "==> Step 1: zsh, git, curl, unzip, a C compiler, python3-venv via the system package manager"
 # unzip is required by the fnm installer in Step 5. A C compiler is required
 # by nvim-treesitter to compile parsers (Step 8's `:TSUpdate` / `.install()`).
-# python3-venv backs the pylatexenc install in Step 6b.
+# python3-venv is required by mason to install basedpyright (a pypi package
+# mason installs into its own venv).
 # Always run the install (package managers no-op on already-installed
 # packages) so a re-run after adding a new base package here still picks it up.
 if command -v apt-get >/dev/null 2>&1; then
@@ -137,16 +138,6 @@ if command -v starship >/dev/null 2>&1 || [ -x "$BIN/starship" ]; then
 else
   curl -sS https://starship.rs/install.sh | sh -s -- --yes --bin-dir "$BIN"
 fi
-
-echo "==> Step 6b: pylatexenc (latex2text, used by render-markdown.nvim for math)"
-PYLATEXENC_VENV="$SHARE/pylatexenc-venv"
-if [ -x "$PYLATEXENC_VENV/bin/latex2text" ]; then
-  echo "    already installed, skipping"
-else
-  python3 -m venv "$PYLATEXENC_VENV"
-  "$PYLATEXENC_VENV/bin/pip" install --quiet pylatexenc
-fi
-ln -sf "$PYLATEXENC_VENV/bin/latex2text" "$BIN/latex2text"
 
 echo "==> Step 7: herdr (so 'herdr --remote' from your Mac has a server to attach to)"
 if command -v herdr >/dev/null 2>&1 || [ -x "$BIN/herdr" ]; then
