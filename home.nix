@@ -15,9 +15,25 @@ in
     fzf       # fuzzy finder
     jq        # json on the command line
     lazygit
-    neovim
+    uv        # python project/venv manager (bicquant etc. use it)
+    (neovim.override {
+      viAlias = true;
+      # plain `neovim` disables g:loaded_python3_provider in its wrapper script's
+      # --cmd, which runs *before* init.lua ever loads - no amount of setting
+      # vim.g.python3_host_prog from Lua can undo that. Must be enabled here.
+      withPython3 = true;
+      extraPython3Packages = ps: with ps; [
+        pynvim         # nvim's python3 remote-plugin host (molten is a remote plugin)
+        jupyter-client # talks to jupyter kernels, used by molten's rplugin code
+      ];
+    })
     nodejs    # needed by mason for npm-based LSP servers (vtsls, etc.)
     tree-sitter  # CLI needed by nvim-treesitter to compile parsers
+    # CLI tools shelled out to by nvim, not part of nvim's own python3 host
+    (python3.withPackages (ps: with ps; [
+      jupytext  # ipynb <-> markdown conversion CLI, used by jupytext.nvim
+      ipykernel # registers a project venv as a kernel: `python -m ipykernel install --user --name <venv>`
+    ]))
     # the font everything renders in
     nerd-fonts.hack
   ];
