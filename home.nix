@@ -18,6 +18,13 @@ in
     neovim
     nodejs    # needed by mason for npm-based LSP servers (vtsls, etc.)
     tree-sitter  # CLI needed by nvim-treesitter to compile parsers
+    # python3_host_prog for nvim + kernel/notebook tooling for molten-nvim
+    (python3.withPackages (ps: with ps; [
+      pynvim        # nvim's python3 remote-plugin host (molten is a remote plugin)
+      jupyter-client # talks to jupyter kernels
+      ipykernel     # lets project venvs register kernels: `python -m ipykernel install --user --name <venv>`
+      jupytext      # ipynb <-> markdown conversion for jupytext.nvim
+    ]))
     # the font everything renders in
     nerd-fonts.hack
   ];
