@@ -154,6 +154,28 @@ export PATH="$BIN:$PATH"
 eval "$(fnm env)"
 fnm install --lts
 
+echo "==> Step 6b: uv (fast python project/venv manager, bicquant-style projects use it)"
+if command -v uv >/dev/null 2>&1 || [ -x "$BIN/uv" ]; then
+  echo "    already installed, skipping"
+else
+  curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR="$BIN" INSTALLER_NO_MODIFY_PATH=1 sh
+fi
+
+echo "==> Step 6c: python packages for molten-nvim / jupytext.nvim"
+# pynvim/jupyter-client are nvim's python3 remote-plugin host (molten is a remote
+# plugin). Unlike the Nix build, this stock neovim release binary has no wrapper
+# disabling provider auto-detection, so notebook.lua's g:python3_host_prog
+# fallback (see there) just needs this venv's python3 to exist at a known path.
+# ipykernel/jupytext are CLI tools jupytext.nvim/notebook.lua shell out to.
+NVIM_PY="$SHARE/nvim-python"
+if [ -x "$NVIM_PY/bin/python3" ]; then
+  echo "    already installed, skipping"
+else
+  "$BIN/uv" venv "$NVIM_PY"
+  "$BIN/uv" pip install --python "$NVIM_PY/bin/python3" pynvim jupyter-client ipykernel jupytext
+fi
+ln -sf "$NVIM_PY/bin/jupytext" "$BIN/jupytext"
+
 echo "==> Step 7: starship prompt"
 if command -v starship >/dev/null 2>&1 || [ -x "$BIN/starship" ]; then
   echo "    starship already installed, skipping"
