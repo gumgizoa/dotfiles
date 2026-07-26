@@ -73,6 +73,16 @@ return {
       { "<leader>me", ":<C-u>MoltenEvaluateVisual<cr>gv", mode = "v", desc = "Evaluate Selection" },
       { "<leader>mr", "<cmd>MoltenReevaluateCell<cr>", desc = "Re-evaluate Cell" },
       { "<leader>md", "<cmd>MoltenDelete<cr>", desc = "Delete Cell" },
+      {
+        "<leader>mn",
+        function()
+          local row = vim.api.nvim_win_get_cursor(0)[1]
+          vim.api.nvim_buf_set_lines(0, row, row, false, { "", "```python", "", "```" })
+          vim.api.nvim_win_set_cursor(0, { row + 3, 0 })
+          vim.cmd.startinsert()
+        end,
+        desc = "New Cell Below",
+      },
       { "<leader>mo", "<cmd>noautocmd MoltenEnterOutput<cr>", desc = "Enter Output" },
       { "<leader>mh", "<cmd>MoltenHideOutput<cr>", desc = "Hide Output" },
       { "<leader>mx", "<cmd>MoltenInterrupt<cr>", desc = "Interrupt Kernel" },
