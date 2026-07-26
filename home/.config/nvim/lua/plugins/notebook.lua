@@ -48,8 +48,18 @@ return {
     init = function()
       -- g:python3_host_prog is set by home.nix's `neovim.override { withPython3 = true; }`,
       -- baked into the nvim wrapper's own early --cmd so it's ready before init.lua even
-      -- loads. Setting it here from Lua would be too late: Neovim's python3 provider
-      -- detection runs before *any* user config gets a chance to run.
+      -- loads. Setting it here from Lua would be too late on that build: Neovim's python3
+      -- provider detection runs before *any* user config gets a chance to run.
+      --
+      -- bootstrap-linux.sh's stock neovim release binary has no such wrapper, so it's still
+      -- unset at this point there - safe to fill in here since nothing has needed python3
+      -- yet. No-op on the Nix build, where it's already set to something else.
+      if not vim.g.python3_host_prog then
+        local linux_venv_python = vim.fn.expand("~/.local/share/nvim-python/bin/python3")
+        if vim.fn.executable(linux_venv_python) == 1 then
+          vim.g.python3_host_prog = linux_venv_python
+        end
+      end
 
       fix_stale_wezterm_socket()
 
