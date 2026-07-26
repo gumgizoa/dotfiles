@@ -9,9 +9,10 @@ return {
       "willothy/wezterm.nvim", -- renders images via `wezterm imgcat` in a split pane
     },
     init = function()
-      -- The neovim host that runs molten's glue code. Not to be confused with
-      -- a notebook's *kernel*, which is whatever interpreter the code actually runs in.
-      vim.g.python3_host_prog = vim.fn.exepath("python3")
+      -- g:python3_host_prog is set by home.nix's `neovim.override { withPython3 = true; }`,
+      -- baked into the nvim wrapper's own early --cmd so it's ready before init.lua even
+      -- loads. Setting it here from Lua would be too late: Neovim's python3 provider
+      -- detection runs before *any* user config gets a chance to run.
 
       -- image.nvim's kitty-protocol backend isn't officially supported under WezTerm
       -- (perf issues, partial compliance). wezterm.nvim shells out to `wezterm imgcat`
