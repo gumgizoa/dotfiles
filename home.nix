@@ -15,6 +15,7 @@ in
     fzf       # fuzzy finder
     jq        # json on the command line
     lazygit
+    uv        # python project/venv manager (bicquant etc. use it)
     (neovim.override {
       viAlias = true;
       # plain `neovim` disables g:loaded_python3_provider in its wrapper script's
