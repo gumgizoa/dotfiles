@@ -1,39 +1,3 @@
--- Find a registered kernel whose interpreter lives inside the project's venv,
--- like an editor's "use workspace interpreter". Two strategies, in order:
---   1. nvim was launched from an already-activated venv ($VIRTUAL_ENV/$CONDA_PREFIX)
---   2. walk up from the current buffer looking for a .venv/venv directory
--- Match by comparing kernel.json's interpreter path against the venv path, not by
--- name, since a kernel can be registered under any --name.
-local function find_kernel_for_venv()
-  local venv = os.getenv("VIRTUAL_ENV") or os.getenv("CONDA_PREFIX")
-  if not venv then
-    venv = vim.fs.find({ ".venv", "venv" }, {
-      path = vim.fn.expand("%:p:h"),
-      upward = true,
-      type = "directory",
-    })[1]
-  end
-  if not venv then
-    return nil
-  end
-  venv = vim.fn.fnamemodify(venv, ":p")
-
-  local ok, kernels = pcall(vim.fn.MoltenAvailableKernels)
-  if not ok then
-    return nil
-  end
-  for _, name in ipairs(kernels) do
-    local spec_path = vim.fn.expand("~/Library/Jupyter/kernels/" .. name .. "/kernel.json")
-    if vim.fn.filereadable(spec_path) == 1 then
-      local ok2, spec = pcall(vim.fn.json_decode, vim.fn.readfile(spec_path))
-      if ok2 and spec.argv and spec.argv[1] and vim.startswith(spec.argv[1], venv) then
-        return name
-      end
-    end
-  end
-  return nil
-end
-
 return {
   -- ── Kernel execution + inline output ────────────────────────────────
   {
@@ -90,14 +54,18 @@ return {
       {
         "<leader>mi",
         function()
-          local name = find_kernel_for_venv()
+          -- Auto-pick the kernel matching the active venv/conda env, like VS Code's
+          -- "select interpreter" remembering your last choice. Falls back to a prompt.
+          local venv = os.getenv("VIRTUAL_ENV") or os.getenv("CONDA_PREFIX")
+          local kernels = vim.fn.MoltenAvailableKernels()
+          local name = venv and vim.tbl_contains(kernels, venv:match("([^/]+)$")) and venv:match("([^/]+)$")
           if name then
             vim.cmd.MoltenInit(name)
           else
             vim.cmd.MoltenInit()
           end
         end,
-        desc = "Init Kernel (auto-detect project venv)",
+        desc = "Init Kernel (auto-detect venv)",
       },
       { "<leader>mI", "<cmd>MoltenInit<cr>", desc = "Init Kernel (prompt)" },
       { "<leader>ml", "<cmd>MoltenEvaluateLine<cr>", desc = "Evaluate Line" },
