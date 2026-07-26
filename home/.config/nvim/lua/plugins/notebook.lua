@@ -1,3 +1,19 @@
+-- quarto-nvim's runner calls otter's get_current_language_context() *before*
+-- sync_raft() (which is what would normally repair a stale otter buffer), so if
+-- otter's hidden language buffer ever gets wiped out from under it, run_cell/etc.
+-- crash instead of recovering. Re-activate otter and retry once instead of leaving
+-- the user stuck needing a manual :e! every time it happens.
+local function run_with_otter_recovery(fn)
+  return function()
+    local ok, err = pcall(fn)
+    if not ok then
+      vim.notify("[quarto] otter buffer went stale, re-activating: " .. tostring(err), vim.log.levels.WARN)
+      pcall(require("otter").activate)
+      fn()
+    end
+  end
+end
+
 return {
   -- ── Kernel execution + inline output ────────────────────────────────
   {
@@ -119,11 +135,11 @@ return {
       },
     },
     keys = {
-      { "<leader>rc", function() require("quarto.runner").run_cell() end, desc = "Run Cell" },
-      { "<leader>ra", function() require("quarto.runner").run_above() end, desc = "Run Cell + Above" },
-      { "<leader>rA", function() require("quarto.runner").run_all() end, desc = "Run All Cells" },
-      { "<leader>rl", function() require("quarto.runner").run_line() end, desc = "Run Line" },
-      { "<leader>r", function() require("quarto.runner").run_range() end, mode = "v", desc = "Run Selection" },
+      { "<leader>rc", run_with_otter_recovery(function() require("quarto.runner").run_cell() end), desc = "Run Cell" },
+      { "<leader>ra", run_with_otter_recovery(function() require("quarto.runner").run_above() end), desc = "Run Cell + Above" },
+      { "<leader>rA", run_with_otter_recovery(function() require("quarto.runner").run_all() end), desc = "Run All Cells" },
+      { "<leader>rl", run_with_otter_recovery(function() require("quarto.runner").run_line() end), desc = "Run Line" },
+      { "<leader>r", run_with_otter_recovery(function() require("quarto.runner").run_range() end), mode = "v", desc = "Run Selection" },
     },
   },
 
