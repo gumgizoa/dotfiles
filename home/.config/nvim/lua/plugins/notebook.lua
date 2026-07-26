@@ -14,6 +14,27 @@ local function run_with_otter_recovery(fn)
   end
 end
 
+-- Long-lived shells under nested multiplexers (herdr, tmux, ...) inherit
+-- $WEZTERM_UNIX_SOCKET at spawn time. If the WezTerm GUI app itself gets
+-- restarted afterward, that socket path points at a dead process and
+-- wezterm.nvim's `wezterm cli split-pane` calls fail - sometimes dumping raw
+-- error output into the terminal and corrupting the screen mid-redraw.
+-- Self-heal by pointing at whatever WezTerm GUI is actually alive right now.
+local function fix_stale_wezterm_socket()
+  local sock = vim.env.WEZTERM_UNIX_SOCKET
+  if sock and vim.uv.fs_stat(sock) then
+    return -- already valid
+  end
+  local pid = vim.fn.systemlist("pgrep -x wezterm-gui")[1]
+  if not pid or pid == "" then
+    return -- not running under a real WezTerm GUI at all
+  end
+  local candidate = vim.fn.expand("~/.local/share/wezterm/gui-sock-" .. pid)
+  if vim.uv.fs_stat(candidate) then
+    vim.env.WEZTERM_UNIX_SOCKET = candidate
+  end
+end
+
 return {
   -- ── Kernel execution + inline output ────────────────────────────────
   {
@@ -29,6 +50,8 @@ return {
       -- baked into the nvim wrapper's own early --cmd so it's ready before init.lua even
       -- loads. Setting it here from Lua would be too late: Neovim's python3 provider
       -- detection runs before *any* user config gets a chance to run.
+
+      fix_stale_wezterm_socket()
 
       -- image.nvim's kitty-protocol backend isn't officially supported under WezTerm
       -- (perf issues, partial compliance). wezterm.nvim shells out to `wezterm imgcat`
