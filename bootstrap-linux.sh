@@ -37,8 +37,7 @@ latest_tag() {
 
 echo "==> Step 1: git via the system package manager"
 # Everything past this point may need to clone something (zsh plugins,
-# omp's installer isn't git-based but Claude Code/other tooling assumes git
-# exists), so it goes first and on its own.
+# Claude Code/other tooling assumes git exists), so it goes first and on its own.
 if command -v apt-get >/dev/null 2>&1; then
   $SUDO apt-get update -y && $SUDO apt-get install -y git
 elif command -v dnf >/dev/null 2>&1; then
@@ -80,6 +79,17 @@ else
   exit 1
 fi
 
+# Debian/Ubuntu's python3-venv only bundles ensurepip for the distro's default
+# python3 (e.g. 3.10 on 22.04). If python3 resolves to a different version -
+# e.g. installed via the deadsnakes PPA - `python3 -m venv` silently produces
+# a venv with no working ensurepip, which breaks mason's basedpyright/ruff
+# installs (both bootstrap their own venv via `python3 -m venv` + ensurepip).
+if command -v apt-get >/dev/null 2>&1 && ! python3 -c 'import ensurepip' >/dev/null 2>&1; then
+  PY3_MINOR="$(python3 -c 'import sys; print(sys.version_info.minor)')"
+  echo "    python3 (3.$PY3_MINOR) has no ensurepip; installing python3.$PY3_MINOR-venv"
+  $SUDO apt-get install -y "python3.$PY3_MINOR-venv"
+fi
+
 echo "==> Step 3: neovim (release tarball, distro repos are usually too old for this config)"
 NVIM_DIR="$SHARE/nvim-linux-$ARCH_NVIM"
 if [ -x "$NVIM_DIR/bin/nvim" ]; then
@@ -91,12 +101,24 @@ fi
 ln -sf "$NVIM_DIR/bin/nvim" "$BIN/nvim"
 
 echo "==> Step 3b: tree-sitter CLI (needed by nvim-treesitter to compile parsers)"
-if [ -x "$BIN/tree-sitter" ]; then
-  echo "    already installed, skipping"
-else
-  curl -fsSL "https://github.com/tree-sitter/tree-sitter/releases/latest/download/tree-sitter-linux-$ARCH_TS.gz" \
-    | gunzip > "$BIN/tree-sitter"
+# v0.26+ binaries are built against glibc 2.39 and won't run on older hosts
+# (e.g. Ubuntu 22.04's 2.35). Try latest first, since most hosts are fine, and
+# fall back to the last release known to run on glibc 2.35 if it doesn't
+# execute. Re-checks even when a binary is already there, so a previously
+# broken install (or a later host glibc upgrade) self-heals on re-run.
+TS_FALLBACK_TAG="v0.25.10"
+install_tree_sitter() {
+  curl -fsSL "$1" | gunzip > "$BIN/tree-sitter"
   chmod +x "$BIN/tree-sitter"
+}
+if [ -x "$BIN/tree-sitter" ] && "$BIN/tree-sitter" --version >/dev/null 2>&1; then
+  echo "    already installed and working, skipping"
+else
+  install_tree_sitter "https://github.com/tree-sitter/tree-sitter/releases/latest/download/tree-sitter-linux-$ARCH_TS.gz"
+  if ! "$BIN/tree-sitter" --version >/dev/null 2>&1; then
+    echo "    latest tree-sitter binary won't run on this host's glibc; falling back to $TS_FALLBACK_TAG"
+    install_tree_sitter "https://github.com/tree-sitter/tree-sitter/releases/download/$TS_FALLBACK_TAG/tree-sitter-linux-$ARCH_TS.gz"
+  fi
 fi
 
 echo "==> Step 4: ripgrep, fd, fzf, jq (static binaries, no distro package needed)"
@@ -155,10 +177,15 @@ eval "$(fnm env)"
 fnm install --lts
 
 echo "==> Step 6b: uv (fast python project/venv manager, bicquant-style projects use it)"
-if command -v uv >/dev/null 2>&1 || [ -x "$BIN/uv" ]; then
+if command -v uv >/dev/null 2>&1; then
   echo "    already installed, skipping"
+  UV="$(command -v uv)"
+elif [ -x "$BIN/uv" ]; then
+  echo "    already installed, skipping"
+  UV="$BIN/uv"
 else
   curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR="$BIN" INSTALLER_NO_MODIFY_PATH=1 sh
+  UV="$BIN/uv"
 fi
 
 echo "==> Step 6c: python packages for molten-nvim / jupytext.nvim"
@@ -171,10 +198,42 @@ NVIM_PY="$SHARE/nvim-python"
 if [ -x "$NVIM_PY/bin/python3" ]; then
   echo "    already installed, skipping"
 else
-  "$BIN/uv" venv "$NVIM_PY"
-  "$BIN/uv" pip install --python "$NVIM_PY/bin/python3" pynvim jupyter-client ipykernel jupytext
+  "$UV" venv "$NVIM_PY"
+  "$UV" pip install --python "$NVIM_PY/bin/python3" pynvim jupyter-client ipykernel jupytext
 fi
 ln -sf "$NVIM_PY/bin/jupytext" "$BIN/jupytext"
+# jupyter_client's KernelManager (what molten-nvim drives directly) writes the kernel's
+# connection file here but never creates the directory itself - that's only done by
+# full JupyterApp-based CLIs (jupyter notebook/lab), which this box never runs. Without
+# it, starting any kernel fails with ENOENT on a nonexistent kernel-<uuid>.json path.
+mkdir -p -m 700 "$SHARE/jupyter/runtime"
+
+echo "==> Step 6d: ImageMagick (sixel backend for molten-nvim plot output)"
+# molten-nvim's default image provider shells out to the local `wezterm` CLI, which
+# doesn't exist on a plain-SSH box like this (see notebook.lua) - image.nvim's sixel
+# backend is the fallback: WezTerm supports sixel directly, and it's pure terminal
+# escape codes (no remote wezterm binary needed), so it survives the SSH/herdr hop
+# the same way the OSC 52 clipboard does. image.nvim's magick_cli processor just
+# needs the `magick`/`convert` CLI on PATH to rasterize PNGs into sixel.
+if command -v magick >/dev/null 2>&1 || command -v convert >/dev/null 2>&1; then
+  echo "    already installed, skipping"
+elif command -v apt-get >/dev/null 2>&1; then
+  $SUDO apt-get install -y imagemagick
+elif command -v dnf >/dev/null 2>&1; then
+  $SUDO dnf install -y ImageMagick
+elif command -v yum >/dev/null 2>&1; then
+  $SUDO yum install -y ImageMagick
+elif command -v pacman >/dev/null 2>&1; then
+  $SUDO pacman -Sy --noconfirm imagemagick
+elif command -v zypper >/dev/null 2>&1; then
+  $SUDO zypper install -y ImageMagick
+elif command -v apk >/dev/null 2>&1; then
+  $SUDO apk add imagemagick
+fi
+if ! { command -v magick >/dev/null 2>&1 && magick -list format 2>/dev/null | grep -qi sixel; } \
+   && ! { command -v convert >/dev/null 2>&1 && convert -list format 2>/dev/null | grep -qi sixel; }; then
+  echo "    warning: no SIXEL coder found in this ImageMagick build - molten plots won't render" >&2
+fi
 
 echo "==> Step 7: starship prompt"
 if command -v starship >/dev/null 2>&1 || [ -x "$BIN/starship" ]; then
@@ -197,14 +256,13 @@ else
   curl -fsSL https://claude.ai/install.sh | bash
 fi
 
-echo "==> Step 10: omp (can1357/oh-my-pi - coding agent with the IDE wired in)"
-if [ -x "$BIN/omp" ]; then
-  echo "    already installed, skipping"
-else
-  OMP_TAG="$(latest_tag can1357/oh-my-pi)"
-  curl -fsSL -o "$BIN/omp" "https://github.com/can1357/oh-my-pi/releases/download/${OMP_TAG}/omp-linux-${ARCH_TS}"
-  chmod +x "$BIN/omp"
-fi
+# omp (can1357/oh-my-pi) is intentionally not installed here - only ever build it from
+# a dev checkout (e.g. /workspace/oh-my-pi), never the public release binary, to avoid
+# two different `omp`s fighting over PATH. To install the dev version:
+#   curl -fsSL https://bun.sh/install | bash   # bun
+#   curl -fsSL https://sh.rustup.rs | sh        # cargo/rustc, needed by build:native
+#   cd /workspace/oh-my-pi && bun run setup
+# `bun run setup` links its own wrapper into `$(bun pm -g bin)` (usually ~/.bun/bin/omp).
 
 echo "==> Step 11: symlink configs from this repo"
 # ln -sfn nests the link *inside* an existing real dir/file instead of
@@ -270,6 +328,18 @@ if [ "$(getent passwd "$(whoami)" | cut -d: -f7 2>/dev/null)" != "$(command -v z
   # SSH session; going through sudo changes it without that prompt.
   $SUDO chsh -s "$(command -v zsh)" "$(whoami)" || echo "    chsh failed, run it yourself: chsh -s $(command -v zsh)"
 fi
+
+echo "==> Step 14: sync nvim plugins and remote-plugin manifest"
+# Idempotent repair, not just first-install: if a prior run of this script died
+# before Step 6c finished (e.g. uv missing), a plugin manager's `build` hook -
+# molten-nvim's is `:UpdateRemotePlugins` - can still fire on nvim's own
+# lazy-install and write out an empty python3 manifest for lack of a python3
+# provider. That stale manifest then silently sits there (nvim never redoes a
+# `build` hook on its own) even after this script's later steps fix the venv,
+# so every re-run re-syncs plugins and regenerates it against whatever
+# python3_host_prog resolves to *now*.
+timeout 300 nvim --headless "+Lazy! sync" +UpdateRemotePlugins +qa 2>&1 \
+  || echo "    plugin sync failed, run ':Lazy sync' and ':UpdateRemotePlugins' yourself inside nvim"
 
 echo "==> Done. Start a new shell (or re-ssh) to pick up zsh, then run 'herdr server' here."
 echo "    From your Mac: herdr --remote <user>@<this-host>"

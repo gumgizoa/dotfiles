@@ -44,6 +44,7 @@ return {
     build = ":UpdateRemotePlugins",
     dependencies = {
       "willothy/wezterm.nvim", -- renders images via `wezterm imgcat` in a split pane
+      "3rd/image.nvim", -- sixel fallback for hosts with no local `wezterm` binary
     },
     init = function()
       -- g:python3_host_prog is handled in vim_config.lua, at the earliest point
@@ -51,9 +52,17 @@ return {
       fix_stale_wezterm_socket()
 
       -- image.nvim's kitty-protocol backend isn't officially supported under WezTerm
-      -- (perf issues, partial compliance). wezterm.nvim shells out to `wezterm imgcat`
-      -- in a split pane instead, which is reliable on this setup.
-      vim.g.molten_image_provider = "wezterm"
+      -- (perf issues, partial compliance), so prefer shelling out to the real
+      -- `wezterm imgcat` when that binary is actually present (e.g. the Mac/Nix build).
+      -- On the plain-SSH Linux boxes bootstrap-linux.sh targets there's no local
+      -- `wezterm` binary at all (it's the Mac-side GUI's CLI) - fall back to
+      -- image.nvim's sixel backend there instead, which WezTerm *does* support well
+      -- and which is pure terminal escape codes, so no remote wezterm binary needed.
+      if vim.fn.executable("wezterm") == 1 then
+        vim.g.molten_image_provider = "wezterm"
+      else
+        vim.g.molten_image_provider = "image.nvim"
+      end
 
       -- Always-visible output, VS Code style, instead of a floating window that only
       -- shows while the cursor sits in the cell.
@@ -123,6 +132,22 @@ return {
       { "<leader>mh", "<cmd>MoltenHideOutput<cr>", desc = "Hide Output" },
       { "<leader>mx", "<cmd>MoltenInterrupt<cr>", desc = "Interrupt Kernel" },
       { "<leader>mR", "<cmd>MoltenRestart!<cr>", desc = "Restart Kernel (clear outputs)" },
+    },
+  },
+
+  -- ── Sixel image backend (molten's fallback when there's no local wezterm CLI) ──
+  {
+    "3rd/image.nvim",
+    lazy = false,
+    -- lazy.nvim auto-builds any plugin with a *.rockspec via luarocks/hererocks unless
+    -- told otherwise, regardless of the `rocks` opts below (those only take effect once
+    -- setup() runs, long after lazy.nvim already decided to build). magick_cli needs no
+    -- lua `magick` rock at all, so skip that build step outright.
+    build = false,
+    opts = {
+      backend = "sixel",
+      processor = "magick_cli", -- shells out to `magick`/`convert`, installed by bootstrap-linux.sh's Step 6d
+      rocks = { enabled = false },
     },
   },
 
