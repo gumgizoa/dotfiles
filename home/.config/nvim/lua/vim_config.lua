@@ -1,3 +1,18 @@
+-- image.nvim's kitty backend (lua/image/backends/kitty/init.lua) decides how to
+-- ship image bytes to the terminal purely from whether $SSH_CLIENT/$SSH_TTY are
+-- set: unset, it writes the PNG to a tmp file in this container and tells the
+-- terminal to open that path directly (transmit medium "file") - which silently
+-- renders nothing, since the terminal (wezterm on the client machine) can't see
+-- this container's filesystem. Every session on this box reaches nvim via
+-- `ssh` -> `docker exec` -> herdr attach, and `docker exec` never forwards the
+-- outer ssh session's env into the exec'd process, so both vars are always unset
+-- here even though every session actually is remote. Must run before lazy.nvim
+-- loads image.nvim (same ordering constraint as python3_host_prog below), since
+-- the check runs once at module `require` time.
+if not vim.env.SSH_TTY and not vim.env.SSH_CLIENT then
+  vim.env.SSH_TTY = "1"
+end
+
 -- g:python3_host_prog on the Nix (mac) build is set by home.nix's
 -- `neovim.override { withPython3 = true; }`, baked into the wrapper's own --cmd
 -- so it's ready before this file even loads. bootstrap-linux.sh's stock neovim

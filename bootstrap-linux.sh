@@ -208,13 +208,13 @@ ln -sf "$NVIM_PY/bin/jupytext" "$BIN/jupytext"
 # it, starting any kernel fails with ENOENT on a nonexistent kernel-<uuid>.json path.
 mkdir -p -m 700 "$SHARE/jupyter/runtime"
 
-echo "==> Step 6d: ImageMagick (sixel backend for molten-nvim plot output)"
+echo "==> Step 6d: ImageMagick (kitty-graphics backend for molten-nvim plot output)"
 # molten-nvim's default image provider shells out to the local `wezterm` CLI, which
-# doesn't exist on a plain-SSH box like this (see notebook.lua) - image.nvim's sixel
-# backend is the fallback: WezTerm supports sixel directly, and it's pure terminal
-# escape codes (no remote wezterm binary needed), so it survives the SSH/herdr hop
-# the same way the OSC 52 clipboard does. image.nvim's magick_cli processor just
-# needs the `magick`/`convert` CLI on PATH to rasterize PNGs into sixel.
+# doesn't exist on a plain-SSH box like this (see notebook.lua) - image.nvim's kitty
+# backend is the fallback, rendered by herdr itself (herdr doesn't understand sixel
+# at all, see herdr/config.toml's [experimental] kitty_graphics). image.nvim's
+# magick_cli processor just needs the `magick`/`convert` CLI on PATH to rasterize
+# PNGs into RGBA for the kitty protocol - no special coder required, unlike sixel.
 if command -v magick >/dev/null 2>&1 || command -v convert >/dev/null 2>&1; then
   echo "    already installed, skipping"
 elif command -v apt-get >/dev/null 2>&1; then
@@ -230,9 +230,34 @@ elif command -v zypper >/dev/null 2>&1; then
 elif command -v apk >/dev/null 2>&1; then
   $SUDO apk add imagemagick
 fi
-if ! { command -v magick >/dev/null 2>&1 && magick -list format 2>/dev/null | grep -qi sixel; } \
-   && ! { command -v convert >/dev/null 2>&1 && convert -list format 2>/dev/null | grep -qi sixel; }; then
-  echo "    warning: no SIXEL coder found in this ImageMagick build - molten plots won't render" >&2
+
+echo "==> Step 6e: chafa (view arbitrary images in the terminal)"
+# General-purpose companion to the molten setup above, useful outside nvim for any
+# image file. Two modes, and the difference matters:
+#   chafa -f kitty some.png    - real pixels, but needs the kitty-graphics path to
+#                                work end to end, so it is dead from a Windows client
+#                                (see nvim/lua/plugins/notebook.lua for why).
+#   chafa -f symbols --symbols vhalf --scale max some.png
+#                              - plain coloured text, no graphics protocol involved,
+#                                so it works over ssh -> docker exec -> herdr today.
+#                                `vhalf` (half-block glyphs) doubles vertical
+#                                resolution, which is what thin plot lines need.
+# The symbols mode also renders inside neovim via `:vsplit | terminal chafa ...`,
+# since a terminal buffer is just text and needs no image support at all.
+if command -v chafa >/dev/null 2>&1; then
+  echo "    already installed, skipping"
+elif command -v apt-get >/dev/null 2>&1; then
+  $SUDO apt-get install -y chafa
+elif command -v dnf >/dev/null 2>&1; then
+  $SUDO dnf install -y chafa
+elif command -v yum >/dev/null 2>&1; then
+  $SUDO yum install -y chafa
+elif command -v pacman >/dev/null 2>&1; then
+  $SUDO pacman -Sy --noconfirm chafa
+elif command -v zypper >/dev/null 2>&1; then
+  $SUDO zypper install -y chafa
+elif command -v apk >/dev/null 2>&1; then
+  $SUDO apk add chafa
 fi
 
 echo "==> Step 7: starship prompt"

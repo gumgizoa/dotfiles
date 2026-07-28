@@ -135,7 +135,27 @@ return {
     },
   },
 
-  -- ── Sixel image backend (molten's fallback when there's no local wezterm CLI) ──
+  -- ── Kitty-graphics image backend (molten's fallback when there's no local wezterm CLI) ──
+  -- KNOWN DEAD from a Windows client, and nothing in this file can fix it: WezTerm on
+  -- Windows spawns the local `ssh` through ConPTY, which discards the APC escapes kitty
+  -- graphics are built on (wezterm#1673, wezterm#5757). Verified by running
+  -- `chafa -f kitty` with herdr *and* neovim both out of the chain - still nothing, so
+  -- the failure is upstream of everything here. The kernel side is fine; molten receives
+  -- a real image/png and simply has nowhere to draw it. Symptom is silence, not an error.
+  -- Kept anyway because it is the path that works from a non-Windows client, e.g.
+  -- `herdr --remote` from the mac, where no ConPTY sits in the middle. To revive it on
+  -- Windows, bypass ConPTY: add a `ssh_domains` entry to wezterm.lua and connect with
+  -- `wezterm connect <domain>` instead of typing `ssh` into a local shell.
+  -- Two traps if you ever pick this back up:
+  --  * Don't set kitty_method = "unicode-placeholders". It is the multiplexer-friendly
+  --    mode in theory, but WezTerm doesn't implement placeholders (wezterm#986,
+  --    wezterm#3817) and renders the U+10EEEE cells as literal glyph garbage.
+  --  * molten additionally *requires* max_width/max_height plus
+  --    max_{width,height}_window_percentage = math.huge, and `""` in
+  --    window_overlap_clear_ft_ignore (its output windows have no filetype, so image.nvim
+  --    otherwise clears the plot it just drew). See molten's Not-So-Quick-Start-Guide.md.
+  -- For actually looking at an image today, `chafa -f symbols` needs no graphics protocol
+  -- at all and works over this exact chain. See bootstrap-linux.sh Step 6e.
   {
     "3rd/image.nvim",
     lazy = false,
@@ -145,9 +165,17 @@ return {
     -- lua `magick` rock at all, so skip that build step outright.
     build = false,
     opts = {
-      backend = "sixel",
+      -- Sixel doesn't work here: herdr (the terminal multiplexer this box's sessions run
+      -- under) doesn't understand sixel DCS sequences at all and silently drops them
+      -- while re-rendering its own vterm state - no image, no garbage, no error. Kitty
+      -- graphics is the one protocol herdr actually renders itself for attached clients
+      -- (opt-in via home/.config/herdr/config.toml's `[experimental] kitty_graphics`).
+      backend = "kitty",
       processor = "magick_cli", -- shells out to `magick`/`convert`, installed by bootstrap-linux.sh's Step 6d
       rocks = { enabled = false },
+      -- Render plain image files inline on `:e`/`:vs` too, not just molten's plot
+      -- output - same kitty pipeline, just triggered by opening the file directly.
+      hijack_file_patterns = { "*.png", "*.jpg", "*.jpeg", "*.gif", "*.webp", "*.avif" },
     },
   },
 

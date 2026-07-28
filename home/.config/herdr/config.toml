@@ -1,3 +1,4 @@
+onboarding = false
 [terminal]
 default_shell = "/bin/zsh"
 
@@ -19,3 +20,21 @@ next_agent = "prefix+a"
 [ui]
 # Agents panel order: explicit choice of "spaces" (grouped by space, the default) over "priority".
 agent_panel_sort = "spaces"
+
+[experimental]
+# herdr doesn't understand sixel at all - it silently drops unrecognized DCS
+# sequences while re-rendering its own vterm state, which is why molten's sixel
+# plots never showed anything (not even garbage). Kitty graphics is the one
+# protocol herdr actually renders itself for attached clients; still marked
+# experimental upstream, and WezTerm's own kitty-protocol compliance is
+# imperfect too, but it's the only path herdr has.
+#
+# Caveat: this is a no-op when the client terminal is WezTerm on Windows, because
+# ConPTY strips the kitty APC escapes before they ever reach it - see the long note
+# in nvim/lua/plugins/notebook.lua. It only earns its keep from a non-Windows client.
+# Two things to know if plots still don't render from one of those:
+#  * The flag is read at server startup, so it needs a real `herdr server stop && herdr`.
+#    `herdr server reload-config` reports "applied" but does not enable it.
+#  * herdr's own neovim-pane rendering has open upstream bugs (herdr#494, herdr#732):
+#    images can come out as blank reserved space even when everything here is correct.
+kitty_graphics = true
