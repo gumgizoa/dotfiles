@@ -2,6 +2,12 @@
 home/.config/herdr/*.log
 home/.config/herdr/session.json
 home/.config/herdr/*.sock
+# Named sessions get their own dir holding the same log/session.json artifacts, and
+# the patterns above don't recurse into it. These logs carry terminal scrollback, so
+# in a public repo this is a disclosure risk, not just noise - `alias add="git add ."`
+# from bootstrap-linux.sh Step 12 would otherwise stage all of it.
+home/.config/herdr/sessions/
+home/.config/herdr/.plugins.lock
 
 # macOS + nix build noise
 .DS_Store
