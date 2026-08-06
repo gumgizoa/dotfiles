@@ -40,11 +40,11 @@ return {
   {
     "benlubas/molten-nvim",
     version = "^1.0.0", -- stay on 1.x to avoid breaking changes
-    lazy = false, -- it's a remote (python) plugin; lazy-loading hides its commands
+    lazy = false,       -- it's a remote (python) plugin; lazy-loading hides its commands
     build = ":UpdateRemotePlugins",
     dependencies = {
       "willothy/wezterm.nvim", -- renders images via `wezterm imgcat` in a split pane
-      "3rd/image.nvim", -- sixel fallback for hosts with no local `wezterm` binary
+      "3rd/image.nvim",        -- sixel fallback for hosts with no local `wezterm` binary
     },
     init = function()
       -- g:python3_host_prog is handled in vim_config.lua, at the earliest point
@@ -66,11 +66,12 @@ return {
 
       -- Always-visible output, VS Code style, instead of a floating window that only
       -- shows while the cursor sits in the cell.
-      vim.g.molten_virt_text_output = true
+      vim.g.molten_virt_text_output = false
       vim.g.molten_virt_lines_off_by_1 = true
-      vim.g.molten_auto_open_output = false
+      vim.g.molten_auto_open_output = true
       vim.g.molten_wrap_output = true
-      vim.g.molten_output_win_max_height = 20
+      vim.g.molten_output_win_max_height = 50
+      vim.g.molten_output_win_hide_on_leave = false
 
       vim.api.nvim_create_user_command("NewNotebook", function(cmd_opts)
         local path = cmd_opts.args:match("%.ipynb$") and cmd_opts.args or (cmd_opts.args .. ".ipynb")
@@ -112,12 +113,12 @@ return {
         end,
         desc = "Init Kernel (auto-detect venv)",
       },
-      { "<leader>mI", "<cmd>MoltenInit<cr>", desc = "Init Kernel (prompt)" },
-      { "<leader>ml", "<cmd>MoltenEvaluateLine<cr>", desc = "Evaluate Line" },
-      { "<leader>me", "<cmd>MoltenEvaluateOperator<cr>", desc = "Evaluate Operator" },
-      { "<leader>me", ":<C-u>MoltenEvaluateVisual<cr>gv", mode = "v", desc = "Evaluate Selection" },
-      { "<leader>mr", "<cmd>MoltenReevaluateCell<cr>", desc = "Re-evaluate Cell" },
-      { "<leader>md", "<cmd>MoltenDelete<cr>", desc = "Delete Cell" },
+      { "<leader>mI", "<cmd>MoltenInit<cr>",              desc = "Init Kernel (prompt)" },
+      { "<leader>ml", "<cmd>MoltenEvaluateLine<cr>",      desc = "Evaluate Line" },
+      { "<leader>me", "<cmd>MoltenEvaluateOperator<cr>",  desc = "Evaluate Operator" },
+      { "<leader>me", ":<C-u>MoltenEvaluateVisual<cr>gv", mode = "v",                   desc = "Evaluate Selection" },
+      { "<leader>mr", "<cmd>MoltenReevaluateCell<cr>",    desc = "Re-evaluate Cell" },
+      { "<leader>md", "<cmd>MoltenDelete<cr>",            desc = "Delete Cell" },
       {
         "<leader>mn",
         function()
@@ -129,9 +130,9 @@ return {
         desc = "New Cell Below",
       },
       { "<leader>mo", "<cmd>noautocmd MoltenEnterOutput<cr>", desc = "Enter Output" },
-      { "<leader>mh", "<cmd>MoltenHideOutput<cr>", desc = "Hide Output" },
-      { "<leader>mx", "<cmd>MoltenInterrupt<cr>", desc = "Interrupt Kernel" },
-      { "<leader>mR", "<cmd>MoltenRestart!<cr>", desc = "Restart Kernel (clear outputs)" },
+      { "<leader>mh", "<cmd>MoltenHideOutput<cr>",            desc = "Hide Output" },
+      { "<leader>mx", "<cmd>MoltenInterrupt<cr>",             desc = "Interrupt Kernel" },
+      { "<leader>mR", "<cmd>MoltenRestart!<cr>",              desc = "Restart Kernel (clear outputs)" },
     },
   },
 
@@ -208,11 +209,11 @@ return {
       },
     },
     keys = {
-      { "<leader>rc", run_with_otter_recovery(function() require("quarto.runner").run_cell() end), desc = "Run Cell" },
+      { "<leader>rc", run_with_otter_recovery(function() require("quarto.runner").run_cell() end),  desc = "Run Cell" },
       { "<leader>ra", run_with_otter_recovery(function() require("quarto.runner").run_above() end), desc = "Run Cell + Above" },
-      { "<leader>rA", run_with_otter_recovery(function() require("quarto.runner").run_all() end), desc = "Run All Cells" },
-      { "<leader>rl", run_with_otter_recovery(function() require("quarto.runner").run_line() end), desc = "Run Line" },
-      { "<leader>r", run_with_otter_recovery(function() require("quarto.runner").run_range() end), mode = "v", desc = "Run Selection" },
+      { "<leader>rA", run_with_otter_recovery(function() require("quarto.runner").run_all() end),   desc = "Run All Cells" },
+      { "<leader>rl", run_with_otter_recovery(function() require("quarto.runner").run_line() end),  desc = "Run Line" },
+      { "<leader>r",  run_with_otter_recovery(function() require("quarto.runner").run_range() end), mode = "v",               desc = "Run Selection" },
     },
   },
 
